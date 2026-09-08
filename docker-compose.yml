@@ -3,6 +3,8 @@ services:
     image: mysql:8.0
     container_name: llm-shield-mysql
     restart: unless-stopped
+    labels:
+      autoheal: "true"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-llm_shield}
@@ -21,6 +23,8 @@ services:
     image: redis:7-alpine
     container_name: llm-shield-redis
     restart: unless-stopped
+    labels:
+      autoheal: "true"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
@@ -39,6 +43,8 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: llm-shield-api
     restart: unless-stopped
+    labels:
+      autoheal: "true"
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -73,11 +79,26 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: llm-shield-web
     restart: unless-stopped
+    labels:
+      autoheal: "true"
     ports:
       - "8088:80"
     depends_on:
       api:
         condition: service_healthy
+    networks:
+      - internal
+
+  # 看门狗：定期检查容器健康状态，将 unhealthy 的容器自动重启（需挂载 docker.sock，仅 Linux 生效）
+  autoheal:
+    image: willfarrell/autoheal
+    container_name: llm-shield-autoheal
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_INTERVAL: 10
+      AUTOHEAL_START_PERIOD: 120
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - internal
 
