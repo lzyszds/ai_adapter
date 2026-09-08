@@ -1,7 +1,7 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: llm-shield-mysql
+    container_name: ai_adapter-mysql
     restart: unless-stopped
     labels:
       autoheal: "true"
@@ -21,7 +21,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: llm-shield-redis
+    container_name: ai_adapter-redis
     restart: unless-stopped
     labels:
       autoheal: "true"
@@ -41,7 +41,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: llm-shield-api
+    container_name: ai_adapter-api
     restart: unless-stopped
     labels:
       autoheal: "true"
@@ -77,7 +77,7 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    container_name: llm-shield-web
+    container_name: ai_adapter-web
     restart: unless-stopped
     labels:
       autoheal: "true"
@@ -92,7 +92,7 @@ services:
   # 看门狗：定期检查容器健康状态，将 unhealthy 的容器自动重启（需挂载 docker.sock，仅 Linux 生效）
   autoheal:
     image: willfarrell/autoheal
-    container_name: llm-shield-autoheal
+    container_name: ai_adapter-autoheal
     restart: unless-stopped
     environment:
       AUTOHEAL_INTERVAL: 10
