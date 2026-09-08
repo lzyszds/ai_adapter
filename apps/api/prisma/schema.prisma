@@ -1,0 +1,25 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model RequestLog {
+  id               Int      @id @default(autoincrement())
+  timestamp        DateTime @default(now())
+  originalModel    String   @map("original_model")
+  mappedModel      String   @map("mapped_model")
+  promptTokens     Int      @default(0) @map("prompt_tokens")
+  completionTokens Int      @default(0) @map("completion_tokens")
+  totalTokens      Int      @default(0) @map("total_tokens")
+  statusCode       Int      @map("status_code")
+  duration         Int      @default(0)
+
+  @@index([timestamp])
+  @@index([mappedModel])
+  @@index([statusCode])
+  @@map("request_logs")
+}

@@ -1,0 +1,22 @@
+{
+  "name": "llm-shield",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "dev:api": "pnpm --filter @llm-shield/api dev",
+    "dev:web": "pnpm --filter @llm-shield/web dev",
+    "db:generate": "pnpm --filter @llm-shield/api db:generate",
+    "db:migrate": "pnpm --filter @llm-shield/api db:migrate",
+    "db:push": "pnpm --filter @llm-shield/api db:push"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
