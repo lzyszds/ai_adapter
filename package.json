@@ -14,7 +14,12 @@
     "dev:web": "pnpm --filter @llm-shield/web dev",
     "db:generate": "pnpm --filter @llm-shield/api db:generate",
     "db:migrate": "pnpm --filter @llm-shield/api db:migrate",
-    "db:push": "pnpm --filter @llm-shield/api db:push"
+    "db:push": "pnpm --filter @llm-shield/api db:push",
+    "docker:build": "docker compose build api web",
+    "docker:push": "docker compose push api web",
+    "docker:publish": "pnpm docker:build && pnpm docker:push",
+    "docker:deploy": "docker compose up -d --build",
+    "docker:down": "docker compose down"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

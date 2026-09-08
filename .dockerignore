@@ -1,0 +1,14 @@
+**/node_modules
+**/node_modules/.cache
+**/dist
+**/.vite
+.pnpm-store
+.env
+.env.*
+!.env.example
+coverage
+*.log
+.git
+.gitignore
+docker-compose.yml
+**/*.md

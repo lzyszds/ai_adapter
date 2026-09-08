@@ -4,32 +4,87 @@ services:
     container_name: llm-shield-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: llm_shield
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-llm_shield}
     volumes:
       - mysql-data:/var/lib/mysql
+    networks:
+      - internal
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD:-root}"]
       interval: 5s
       timeout: 3s
       retries: 20
+      start_period: 20s
 
   redis:
     image: redis:7-alpine
     container_name: llm-shield-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
+    networks:
+      - internal
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 20
 
+  api:
+    image: ${DOCKER_REGISTRY:-lzyszds}/ai_adapter-api:${DOCKER_TAG:-v1}
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: llm-shield-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_ROOT_PASSWORD:-root}@mysql:3306/${MYSQL_DATABASE:-llm_shield}?connection_limit=20
+      REDIS_URL: redis://redis:6379
+      UPSTREAM_URL: ${UPSTREAM_URL:-https://llm.goaichat.top}
+      UPSTREAM_API_KEY: ${UPSTREAM_API_KEY:-}
+      PROXY_API_KEY: ${PROXY_API_KEY:-}
+      FLUSH_INTERVAL_MS: ${FLUSH_INTERVAL_MS:-5000}
+      FLUSH_BATCH_SIZE: ${FLUSH_BATCH_SIZE:-500}
+      STATS_CACHE_TTL_MS: ${STATS_CACHE_TTL_MS:-10000}
+      STREAM_IDLE_TIMEOUT_MS: ${STREAM_IDLE_TIMEOUT_MS:-120000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/health').then(async r => { const j = await r.json(); process.exit(r.ok && j.status === 'ok' ? 0 : 1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  web:
+    image: ${DOCKER_REGISTRY:-lzyszds}/ai_adapter-web:${DOCKER_TAG:-v1}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: llm-shield-web
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - internal
+
 volumes:
   mysql-data:
   redis-data:
+
+networks:
+  internal:
+    driver: bridge
