@@ -59,7 +59,12 @@ pnpm dev
 
 ## Docker 部署（amd64 服务器）
 
-将 API 代理、Web 仪表盘、MySQL、Redis 全部打包进容器，一条命令拉起。仅对外暴露一个特殊端口 **8088**（可在 `docker-compose.yml` 的 `web.ports` 中修改），全部服务通过 `http://<服务器>:8088` 访问。
+将 API 代理、Web 仪表盘、MySQL、Redis 全部打包进容器。仅对外暴露一个特殊端口 **8088**（可在 `web.ports` 中修改），全部服务通过 `http://<服务器>:8088` 访问。
+
+仓库提供两份 compose 文件：
+
+- **`docker-compose.yml`** — 本地/开发用，服务带 `build:`，从源码构建。
+- **`docker-compose.prod.yml`** — 服务器部署专用，**只有 `image:`、不含 `build:`**，无需源码即可运行，只拉镜像。
 
 ### 1. 配置环境变量
 
@@ -70,7 +75,7 @@ cp .env.example .env
 
 `.env` 中的 `DATABASE_URL` / `REDIS_URL` 会被 compose 覆盖为内部服务名地址（`mysql` / `redis`），无需自行修改。
 
-### 2. 构建、推送并启动
+### 2. 构建、推送镜像（在本机做一次）
 
 登录 Docker Hub 后，在项目根目录执行：
 
@@ -79,34 +84,39 @@ docker login
 pnpm docker:publish
 ```
 
-`docker:publish` 会依次执行 `docker compose build api web` 和 `docker compose push api web`，推送以下 amd64 应用镜像：
+`docker:publish` 依次执行 `docker compose build api web` 和 `docker compose push api web`，推送：
 
 - `lzyszds/ai_adapter-api:v1`
 - `lzyszds/ai_adapter-web:v1`
 
-需要发布新版本时，在 `.env` 中设置 `DOCKER_TAG=v2`（或自定义 `DOCKER_REGISTRY`），再执行 `pnpm docker:publish`。
+发布新版本时在 `.env` 中设置 `DOCKER_TAG=v2`（或自定义 `DOCKER_REGISTRY`）再执行 `pnpm docker:publish`。
 
-在服务器上部署：
+### 3. 在服务器上部署（无需源码、无需构建）
+
+**只上传 `docker-compose.prod.yml` 和 `.env` 到服务器**，例如放到 `/www/wwwroot/claude_server/`，然后执行：
 
 ```bash
-git clone https://github.com/lzyszds/ai_adapter.git
-cd ai_adapter
-cp .env.example .env
-# 编辑 .env，至少设置 UPSTREAM_URL、PROXY_API_KEY、MYSQL_ROOT_PASSWORD
-docker compose pull api web
-docker compose up -d
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-服务器只需要拉取已推送的 api/web 镜像，MySQL 与 Redis 会自动拉取官方镜像。
+之后的操作都以 `-f docker-compose.prod.yml` 指定该文件。也可以直接用脚本：
 
-### 3. 访问
+```bash
+pnpm docker:deploy:prod
+```
+
+> 若 `lzyszds/ai_adapter-*` 镜像是私有仓库，服务器需先 `docker login`。
+> 服务器端不需要 `apps/`、`packages/` 等源码，出现 `lstat .../apps: no such file` 说明用错了带 `build:` 的 `docker-compose.yml`。
+
+### 4. 访问
 
 - 仪表盘：http://<服务器>:8088/
 - 统计接口：http://<服务器>:8088/api/stats
 - 健康检查：http://<服务器>:8088/health
 - 代理地址：http://<服务器>:8088 （客户端把 base URL 指向这里即可，路径透传至上游）
 
-### 4. 常用运维命令
+### 5. 常用运维命令
 
 ```bash
 docker compose ps              # 查看服务状态（应为 healthy）

@@ -19,6 +19,7 @@
     "docker:push": "docker compose push api web",
     "docker:publish": "pnpm docker:build && pnpm docker:push",
     "docker:deploy": "docker compose up -d --build",
+    "docker:deploy:prod": "docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d",
     "docker:down": "docker compose down"
   },
   "devDependencies": {
