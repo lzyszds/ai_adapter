@@ -8,3 +8,15 @@ dist/
 coverage/
 *.log
 .DS_Store
+*.zip
+*.tar.gz
+*.tar
+*.tar.xz
+*.tar.lzma
+*.tar.lz
+*.tar.Z
+*.tar.bz
+*.tar.bz2
+*.tar.xz
+*.tar.lzma
+*.tar.lz
