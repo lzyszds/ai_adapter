@@ -55,8 +55,8 @@ services:
       DATABASE_URL: mysql://llm_shield:LlmShield2026@mysql:3306/llm_shield?connection_limit=20
       REDIS_URL: redis://redis:6379
       UPSTREAM_URL: https://llm.goaichat.top
+      # 留空：Claude / 仪表盘均使用客户端填入的上游 API Key
       UPSTREAM_API_KEY: ""
-      PROXY_API_KEY: ""
       FLUSH_INTERVAL_MS: "5000"
       FLUSH_BATCH_SIZE: "500"
       STATS_CACHE_TTL_MS: "10000"

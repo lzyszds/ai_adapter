@@ -1,0 +1,15 @@
+# Watchtower 自动更新（独立部署，只需执行一次）
+# 用法：docker compose -f docker-compose.watchtower.yml up -d
+# 仅更新带 com.centurylinklabs.watchtower.enable=true 标签的容器
+
+services:
+  watchtower:
+    image: docker.m.daocloud.io/containrrr/watchtower:latest
+    container_name: ai_adapter-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_CLEANUP: "true"

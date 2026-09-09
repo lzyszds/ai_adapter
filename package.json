@@ -19,7 +19,9 @@
     "docker:push": "docker compose -f docker-compose.dev.yml push app",
     "docker:publish": "pnpm docker:build && pnpm docker:push",
     "docker:deploy": "docker compose -f docker-compose.dev.yml up -d --build",
-    "docker:down": "docker compose -f docker-compose.dev.yml down"
+    "docker:down": "docker compose -f docker-compose.dev.yml down",
+    "bench:latency": "bash scripts/benchmark-latency.sh",
+    "bench:models": "bash scripts/benchmark-models.sh"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

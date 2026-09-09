@@ -51,7 +51,7 @@ pnpm dev
 
 ## 代理行为
 
-- Claude / Claude Code 客户端使用伪装 Claude 模型 ID 发起请求，代理按映射表转发至真实上游模型（Kimi、GLM、Qwen、DeepSeek 等）；完整规则见仪表盘「模型映射表」。
+- 客户端填 `claude-v01` 等自定义 ID，代理转发上游时使用**基础模型 ID**（如 `kimi-k3`、`glm-5.3-flash`）；完整规则见仪表盘「模型映射表」。
 - 流式请求自动注入 `stream_options.include_usage=true`。
 - 流式响应通过 `ReadableStream.tee()` 透传给客户端，同时异步解析 SSE usage，不阻塞首字节响应。
 - 请求记录优先写入 Redis 队列，每 5 秒批量写入 MySQL；Redis 不可用时降级直写 MySQL。
@@ -59,7 +59,7 @@ pnpm dev
 
 ## Docker 部署（amd64 服务器）
 
-单镜像 `lzyszds/ai_adapter:v2`（Nginx + Bun API），对外端口 **8088**。
+单镜像 `registry.cn-hangzhou.aliyuncs.com/lzyszds/ai_adapter:latest`（Nginx + Bun API），对外端口 **8088**。
 
 ### 服务器一键部署
 
@@ -85,7 +85,7 @@ pnpm docker:publish
 ### 访问
 
 - 仪表盘：http://<服务器>:8088/
-- 统计接口：http://<服务器>:8088/api/stats
+- 统计接口：http://<服务器>:8088/api/stats（需携带上游 API Key，与 Claude 填入相同）
 - 健康检查：http://<服务器>:8088/health
 - 代理地址：http://<服务器>:8088 （客户端把 base URL 指向这里即可，路径透传至上游）
 
@@ -98,11 +98,26 @@ docker compose down            # 停止（保留数据卷）
 docker compose down -v         # 停止并清除数据卷
 ```
 
-> 首次启动由 `apps/api/docker-entrypoint.sh` 执行 `prisma db push` 幂等同步 schema 到 MySQL。构建在 linux/amd64 容器内重新生成 Prisma Client，避免平台 engine 不匹配。
+> 首次启动由 `docker-entrypoint.sh` 执行 `prisma generate` + `prisma db push` 幂等同步 schema 到 MySQL。镜像在 runtime 阶段（debian-openssl-3.0.x）重新 generate Prisma Client，避免 OpenSSL 版本不匹配导致 API 502。
+
+### 自动更新（可选）
+
+```bash
+docker compose -f docker-compose.watchtower.yml up -d
+```
+
+## Claude Code 配置
+
+| 项 | 值 |
+|---|---|
+| Base URL | `https://你的域名`（如 `https://claude.lzyszds.cn`） |
+| API Key | goaichat 上游密钥（`UPSTREAM_API_KEY` 留空时透传） |
+| Model | `claude-v01` ~ `claude-v16`（自定义编号避免与 Anthropic 官方名冲突；未知 Claude 名默认 Kimi K3） |
 
 ## 生产注意事项
 
-- 将 `PROXY_API_KEY` 设置为随机高强度密钥，并通过反向代理启用 HTTPS。
+- `UPSTREAM_API_KEY` 留空时，Claude 客户端与仪表盘均使用用户填入的上游 Key；若需服务端固定 Key 可设置该变量。
+- 通过宝塔/Nginx 反代启用 HTTPS，反代目标 `127.0.0.1:8088`。
 - 不要把 `.env`、数据库密码或 API Key 提交到 Git。
 - 生产环境建议直接使用本仓库的 `docker compose` 部署（容器启动时以 `prisma db push` 同步 schema）。若后续引入 migration 文件，可将 `apps/api/docker-entrypoint.sh` 中的 `db:push` 改为 `prisma migrate deploy`。
 - 为 MySQL、Redis 和 API 配置持久化卷、备份、日志采集和进程监控。

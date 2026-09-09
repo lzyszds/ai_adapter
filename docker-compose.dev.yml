@@ -37,6 +37,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
     container_name: ai_adapter-app
     restart: unless-stopped
     ports:
@@ -48,7 +50,6 @@ services:
       REDIS_URL: redis://redis:6379
       UPSTREAM_URL: ${UPSTREAM_URL:-https://llm.goaichat.top}
       UPSTREAM_API_KEY: ${UPSTREAM_API_KEY:-}
-      PROXY_API_KEY: ${PROXY_API_KEY:-}
       FLUSH_INTERVAL_MS: ${FLUSH_INTERVAL_MS:-5000}
       FLUSH_BATCH_SIZE: ${FLUSH_BATCH_SIZE:-500}
       STATS_CACHE_TTL_MS: ${STATS_CACHE_TTL_MS:-10000}

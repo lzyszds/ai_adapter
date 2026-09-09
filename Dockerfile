@@ -23,12 +23,13 @@ COPY packages/shared packages/shared
 
 RUN pnpm --filter @llm-shield/web build
 
-ENV DATABASE_URL="mysql://user:pass@localhost:3306/db"
-RUN pnpm --filter @llm-shield/api db:generate
-
 FROM ${NODE_IMAGE} AS deps
 
 WORKDIR /app
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
@@ -44,6 +45,19 @@ COPY packages/shared packages/shared
 ENV DATABASE_URL="mysql://user:pass@localhost:3306/db"
 RUN pnpm --filter @llm-shield/api db:generate
 
+# 在 Node + OpenSSL 3 环境最终 generate，避免 Bun runtime 跑 prisma CLI 崩溃
+FROM ${NODE_IMAGE} AS prisma-gen
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=deps /app /app
+WORKDIR /app/apps/api
+ENV DATABASE_URL="mysql://user:pass@localhost:3306/db"
+RUN npx prisma generate --schema prisma/schema.prisma
+
 FROM ${BUN_IMAGE} AS runtime
 
 WORKDIR /app
@@ -54,7 +68,7 @@ RUN apt-get update \
   && rm -f /etc/nginx/sites-enabled/default \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=deps /app /app
+COPY --from=prisma-gen /app /app
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.standalone.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

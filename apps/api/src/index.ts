@@ -6,6 +6,7 @@ import { prisma } from "./lib/prisma";
 import { redis } from "./lib/redis";
 import { initBuffer, stopFlusher } from "./services/buffer";
 import { getStats } from "./services/stats";
+import { isStatsAuthorized } from "./lib/auth";
 import { proxyRequest } from "./middleware/proxy";
 
 const app = new Elysia()
@@ -37,13 +38,19 @@ const app = new Elysia()
       timestamp: new Date().toISOString(),
     };
   })
-  .get("/api/stats", () => getStats())
+  .get("/api/stats", ({ request, set }) => {
+    if (!isStatsAuthorized(request)) {
+      set.status = 401;
+      return { error: "Unauthorized", message: "需要有效的上游 API Key" };
+    }
+    return getStats();
+  })
   // 兜底：所有未被 API 路由匹配的请求视为代理请求，透传原始路径。
   .all("/*", ({ request }) => proxyRequest(request));
 
-const server = app.listen(config.PORT);
+await initBuffer();
 
-void initBuffer();
+const server = app.listen(config.PORT);
 
 async function shutdown(signal: string) {
   logger.info(`收到 ${signal}，开始优雅关闭...`);

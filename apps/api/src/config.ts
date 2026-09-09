@@ -1,13 +1,13 @@
 import { z } from "zod";
 
+const emptyToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
+
 const schema = z.object({
   PORT: z.coerce.number().default(3000),
   // 上游中转站地址，例如 https://api.midway.example.com/v1
   UPSTREAM_URL: z.string().url().default("http://localhost:4000/v1"),
-  // 调用上游所用的鉴权，透传给中转站；可为空以透传客户端请求头。
-  UPSTREAM_API_KEY: z.string().optional(),
-  // 客户端访问本代理所需的 Bearer Key；为空则不做鉴权。
-  PROXY_API_KEY: z.string().optional(),
+  // 可选：服务端固定上游 Key；留空则使用 Claude 客户端填入的 Key 转发上游（仪表盘亦同）。
+  UPSTREAM_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
 
   DATABASE_URL: z
     .string()

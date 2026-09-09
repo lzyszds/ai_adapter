@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { getModelMappings, type StatsResponse } from "@llm-shield/shared";
 import { Activity, ArrowUpRight, Clock3, Database, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 
-const COLORS = ["#2a78d6", "#eb6834", "#1baf7a"];
+const COLORS = ["#FF466B", "#F43F5E", "#FF758C", "#E11D48", "#BE123C"];
+const UPSTREAM_API_KEY_STORAGE = "llm-shield-upstream-api-key";
 const EMPTY: StatsResponse = {
   summary: { totalRequests: 0, successCount: 0, failedCount: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, avgDurationMs: 0 },
   models: [], trends: [], generatedAt: "",
@@ -13,7 +14,7 @@ function formatNumber(value: number) { return new Intl.NumberFormat("zh-CN", { n
 function formatPercent(value: number) { return `${Math.round(value * 100)}%`; }
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-xl border bg-card p-5 shadow-sm ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-[#efd5dc]/70 bg-card/80 p-5 shadow-[0_8px_30px_-18px_rgba(122,66,88,0.45)] backdrop-blur ${className}`}>{children}</section>;
 }
 
 function StatCard({ icon: Icon, label, value, detail, color }: { icon: typeof Activity; label: string; value: string; detail: string; color: string }) {
@@ -34,14 +35,14 @@ function TrendChart({ stats }: { stats: StatsResponse }) {
   const line = coords.map((p, i) => `${i ? "L" : "M"}${p.x},${p.y}`).join(" ");
   const area = coords.length ? `${line} L${coords[coords.length - 1].x},${height - padY} L${coords[0].x},${height - padY} Z` : "";
   return <Card className="min-h-[270px]">
-    <div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold">请求趋势</h2><p className="mt-1 text-xs text-muted-foreground">最近 1 小时 · 5 分钟聚合</p></div><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-[#2a78d6]" />请求数</span></div>
+    <div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold">请求趋势</h2><p className="mt-1 text-xs text-muted-foreground">最近 1 小时 · 5 分钟聚合</p></div><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-full bg-[#FF466B]" />请求数</span></div>
     {points.length === 0 ? <div className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">暂无趋势数据</div> : <div className="relative">
       <svg viewBox={`0 0 ${width} ${height}`} className="h-[180px] w-full overflow-visible" role="img" aria-label="最近一小时请求趋势">
         {[0, .5, 1].map((ratio) => <line key={ratio} x1={padX} x2={width - padX} y1={height - padY - ratio * (height - padY * 2)} y2={height - padY - ratio * (height - padY * 2)} stroke="currentColor" className="text-border" strokeWidth="1" />)}
-        <path d={area} fill="#2a78d6" fillOpacity=".1" />
-        <path d={line} fill="none" stroke="#2a78d6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={area} fill="#FF466B" fillOpacity=".1" />
+        <path d={line} fill="none" stroke="#FF466B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {coords.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="5" fill="transparent" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} />)}
-        {hover !== null && <circle cx={coords[hover].x} cy={coords[hover].y} r="4" fill="#2a78d6" stroke="currentColor" strokeWidth="2" className="text-card" />}
+        {hover !== null && <circle cx={coords[hover].x} cy={coords[hover].y} r="4" fill="#FF466B" stroke="currentColor" strokeWidth="2" className="text-card" />}
       </svg>
       {hover !== null && <div className="pointer-events-none absolute right-2 top-0 rounded-md border bg-popover px-3 py-2 text-xs shadow-md"><p className="font-medium">{new Date(points[hover].timestamp).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</p><p className="mt-1 text-muted-foreground">{points[hover].requestCount} 次请求 · {formatNumber(points[hover].totalTokens)} tokens</p></div>}
     </div>}
@@ -55,25 +56,104 @@ function ModelBreakdown({ stats }: { stats: StatsResponse }) {
 
 function ModelMappingTable() {
   const mappings = getModelMappings();
-  return <Card className="overflow-hidden"><div className="mb-5"><h2 className="font-semibold">模型映射表</h2><p className="mt-1 text-xs text-muted-foreground">在 Claude / Claude Code 中填入 <span className="font-mono">claude-1</span>、<span className="font-mono">claude-2</span> …；未知模型默认兜底 <span className="font-mono">claude-1</span>（Kimi K3）</p></div><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs text-muted-foreground"><th className="pb-3 font-medium">Claude 模型 ID</th><th className="pb-3 font-medium">对应模型</th></tr></thead><tbody>{mappings.map((mapping) => <tr key={mapping.claudeModel} className="border-b last:border-0"><td className="py-2.5 font-mono text-xs">{mapping.claudeModel}</td><td className="py-2.5 text-sm">{mapping.label}</td></tr>)}</tbody></table></div></Card>;
+  return <Card className="overflow-hidden"><div className="mb-5"><h2 className="font-semibold">模型映射表</h2><p className="mt-1 text-xs text-muted-foreground">填入 <span className="font-mono">claude-v01</span>、<span className="font-mono">claude-v02</span> …；未知 Claude 名默认走 <span className="font-mono">claude-v01</span>（Kimi K3）</p></div><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs text-muted-foreground"><th className="pb-3 font-medium">模型 ID</th><th className="pb-3 font-medium">对应模型</th></tr></thead><tbody>{mappings.map((mapping) => <tr key={mapping.claudeModel} className="border-b last:border-0"><td className="py-2.5 font-mono text-xs">{mapping.claudeModel}</td><td className="py-2.5 text-sm">{mapping.label}</td></tr>)}</tbody></table></div></Card>;
 }
 
 function RuleTable({ stats }: { stats: StatsResponse }) {
   return <Card className="overflow-hidden"><div className="mb-5"><h2 className="font-semibold">转换规则明细</h2><p className="mt-1 text-xs text-muted-foreground">原始模型与目标模型的调用表现</p></div>{stats.models.length === 0 ? <p className="py-12 text-center text-sm text-muted-foreground">暂无规则数据</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs text-muted-foreground"><th className="pb-3 font-medium">原始模型</th><th className="pb-3 font-medium">目标模型</th><th className="pb-3 text-right font-medium">调用次数</th><th className="pb-3 text-right font-medium">成功率</th></tr></thead><tbody>{stats.models.map((model) => <tr key={model.mappedModel} className="border-b last:border-0"><td className="py-3 font-mono text-xs">{model.originalModels.join(", ") || "unknown"}</td><td className="py-3 font-mono text-xs text-primary">{model.mappedModel}</td><td className="py-3 text-right tabular-nums">{model.requestCount}</td><td className="py-3 text-right"><span className={model.successRate >= .9 ? "text-emerald-600" : "text-amber-600"}>{formatPercent(model.successRate)}</span></td></tr>)}</tbody></table></div>}</Card>;
 }
 
+function AdminLogin({ onLogin }: { onLogin: (apiKey: string) => void }) {
+  const [input, setInput] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async () => {
+    const apiKey = input.trim();
+    if (!apiKey || submitting) {
+      if (!apiKey) setError("请输入 API Key");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      // 同时发送两种常见格式，兼容测试环境的网关/反向代理。
+      const response = await fetch("/api/stats", {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "x-api-key": apiKey,
+        },
+      });
+      if (response.status === 401) {
+        setError("上游 API Key 无效，请检查密钥后重试");
+        return;
+      }
+      if (!response.ok) {
+        setError(`服务暂不可用（HTTP ${response.status}），请确认 API 服务已启动`);
+        return;
+      }
+      sessionStorage.setItem(UPSTREAM_API_KEY_STORAGE, apiKey);
+      onLogin(apiKey);
+    } catch {
+      setError("无法连接 API 服务，请确认测试环境地址和后端服务已启动");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#fdf5f3] px-5 dark:bg-background"><div aria-hidden="true" className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[#FF466B]/10 blur-3xl" /><div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-[#FF758C]/10 blur-3xl" />
+    <Card className="w-full max-w-md">
+      <div className="mb-6 flex items-center gap-3"><div className="rounded-xl bg-gradient-to-br from-[#FF466B] to-[#E11D48] p-2 text-white shadow-[0_8px_20px_-6px_rgba(255,70,107,0.6)]"><ShieldCheck size={22} /></div><div><h1 className="text-xl font-semibold">LLM-Shield</h1><p className="text-sm text-muted-foreground">请输入上游 API Key 查看仪表盘（与 Claude 填入相同）</p></div></div>
+      <input type="password" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void submit()} placeholder="上游 API Key" className="mb-3 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none ring-primary focus:ring-2" />
+      {error && <p className="mb-3 text-sm text-amber-600">{error}</p>}
+      <button onClick={() => void submit()} className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">进入仪表盘</button>
+    </Card>
+  </main>;
+}
+
 export default function App() {
+  const [upstreamApiKey, setUpstreamApiKey] = useState(() => sessionStorage.getItem(UPSTREAM_API_KEY_STORAGE) ?? "");
   const [stats, setStats] = useState<StatsResponse>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
-  const fetchStats = useCallback(async () => { setLoading(true); try { const response = await fetch("/api/stats"); if (!response.ok) throw new Error("stats request failed"); const data = await response.json() as StatsResponse; setStats(data); setLastUpdated(new Date().toLocaleTimeString("zh-CN")); setError(""); } catch { setError("无法连接 API 服务，请确认后端已启动"); } finally { setLoading(false); } }, []);
-  useEffect(() => { void fetchStats(); const timer = window.setInterval(() => void fetchStats(), 5000); return () => window.clearInterval(timer); }, [fetchStats]);
+  const fetchStats = useCallback(async () => {
+    if (!upstreamApiKey) return;
+    setLoading(true);
+    try {
+      const response = await fetch("/api/stats", {
+        headers: {
+          Authorization: `Bearer ${upstreamApiKey}`,
+          "x-api-key": upstreamApiKey,
+        },
+      });
+      if (response.status === 401) {
+        sessionStorage.removeItem(UPSTREAM_API_KEY_STORAGE);
+        setUpstreamApiKey("");
+        setError("API Key 已失效，请重新登录");
+        return;
+      }
+      if (!response.ok) throw new Error("stats request failed");
+      const data = await response.json() as StatsResponse;
+      setStats(data);
+      setLastUpdated(new Date().toLocaleTimeString("zh-CN"));
+      setError("");
+    } catch {
+      setError("无法连接 API 服务，请确认后端已启动");
+    } finally {
+      setLoading(false);
+    }
+  }, [upstreamApiKey]);
+  useEffect(() => {
+    if (!upstreamApiKey) return;
+    void fetchStats();
+    const timer = window.setInterval(() => void fetchStats(), 5000);
+    return () => window.clearInterval(timer);
+  }, [fetchStats, upstreamApiKey]);
+  if (!upstreamApiKey) return <AdminLogin onLogin={setUpstreamApiKey} />;
   const { summary } = stats;
-  return <main className="min-h-screen bg-slate-50/70 dark:bg-background"><div className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
-    <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><div className="flex items-center gap-3"><div className="rounded-xl bg-primary p-2 text-primary-foreground"><ShieldCheck size={24} /></div><div><h1 className="text-2xl font-semibold tracking-tight">LLM-Shield</h1><p className="text-sm text-muted-foreground">LLM 代理与分析平台</p></div></div></div><div className="flex items-center gap-3"><span className="text-xs text-muted-foreground">{lastUpdated ? `更新于 ${lastUpdated}` : "等待数据"}</span><button onClick={() => void fetchStats()} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-accent disabled:opacity-50"><RefreshCw size={15} className={loading ? "animate-spin" : ""} />刷新</button></div></header>
+  return <main className="relative min-h-screen overflow-hidden bg-[#fdf5f3] dark:bg-background"><div aria-hidden="true" className="pointer-events-none absolute -right-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-[#FF466B]/10 blur-3xl dark:bg-[#FF466B]/[0.06]" /><div aria-hidden="true" className="pointer-events-none absolute -bottom-48 -left-40 h-[30rem] w-[30rem] rounded-full bg-[#FF758C]/10 blur-3xl dark:bg-[#FF758C]/[0.05]" /><div className="relative z-10 mx-auto max-w-7xl px-5 py-8 sm:px-8">
+    <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><div className="flex items-center gap-3"><div className="rounded-xl bg-gradient-to-br from-[#FF466B] to-[#E11D48] p-2 text-white shadow-[0_8px_20px_-6px_rgba(255,70,107,0.6)]"><ShieldCheck size={24} /></div><div><h1 className="text-2xl font-semibold tracking-tight">LLM-Shield</h1><p className="text-sm text-muted-foreground">LLM 代理与分析平台</p></div></div></div><div className="flex items-center gap-3"><span className="text-xs text-muted-foreground">{lastUpdated ? `更新于 ${lastUpdated}` : "等待数据"}</span><button onClick={() => void fetchStats()} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-accent disabled:opacity-50"><RefreshCw size={15} className={loading ? "animate-spin" : ""} />刷新</button><button onClick={() => { sessionStorage.removeItem(UPSTREAM_API_KEY_STORAGE); setUpstreamApiKey(""); }} className="rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm transition hover:bg-accent">退出</button></div></header>
     {error && <div className="mb-6 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><TriangleAlert size={17} />{error}</div>}
-    <div className="mb-6 grid gap-4 md:grid-cols-3"><StatCard icon={Activity} label="总请求次数" value={formatNumber(summary.totalRequests)} detail={`${summary.successCount} 成功 · ${summary.failedCount} 失败`} color="#2a78d6" /><StatCard icon={Database} label="总消耗 Token" value={formatNumber(summary.totalTokens)} detail={`${formatNumber(summary.promptTokens)} 输入 · ${formatNumber(summary.completionTokens)} 输出`} color="#1baf7a" /><StatCard icon={Clock3} label="平均响应时间" value={`${summary.avgDurationMs} ms`} detail="基于最近 1 小时请求" color="#eb6834" /></div>
+    <div className="mb-6 grid gap-4 md:grid-cols-3"><StatCard icon={Activity} label="总请求次数" value={formatNumber(summary.totalRequests)} detail={`${summary.successCount} 成功 · ${summary.failedCount} 失败`} color="#FF466B" /><StatCard icon={Database} label="总消耗 Token" value={formatNumber(summary.totalTokens)} detail={`${formatNumber(summary.promptTokens)} 输入 · ${formatNumber(summary.completionTokens)} 输出`} color="#E11D48" /><StatCard icon={Clock3} label="平均响应时间" value={`${summary.avgDurationMs} ms`} detail="基于最近 1 小时请求" color="#FF758C" /></div>
     <div className="mb-6 grid gap-6 lg:grid-cols-[1.25fr_.75fr]"><TrendChart stats={stats} /><Card><div className="mb-5 flex items-start justify-between"><div><h2 className="font-semibold">服务状态</h2><p className="mt-1 text-xs text-muted-foreground">代理运行概览</p></div><ArrowUpRight size={17} className="text-muted-foreground" /></div><div className="space-y-4"><div className="flex items-center justify-between rounded-lg bg-muted/60 p-3"><span className="text-sm text-muted-foreground">请求成功率</span><span className="font-semibold text-emerald-600">{summary.totalRequests ? formatPercent(summary.successCount / summary.totalRequests) : "—"}</span></div><div className="flex items-center justify-between rounded-lg bg-muted/60 p-3"><span className="text-sm text-muted-foreground">数据刷新</span><span className="flex items-center gap-2 text-sm font-medium"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />每 5 秒</span></div><div className="flex items-center justify-between rounded-lg bg-muted/60 p-3"><span className="text-sm text-muted-foreground">统计窗口</span><span className="text-sm font-medium">最近 1 小时</span></div></div></Card></div>
     <div className="mb-6"><ModelMappingTable /></div>
     <div className="grid gap-6 lg:grid-cols-2"><ModelBreakdown stats={stats} /><RuleTable stats={stats} /></div>
