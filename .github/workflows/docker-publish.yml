@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,6 +44,9 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # 阿里云 ACR 个人版不支持 OCI 来源证明清单（application/vnd.oci.empty.v1+json），需关闭
+          provenance: false
+          sbom: false
           build-args: |
             NODE_IMAGE=node:22-slim
             BUN_IMAGE=oven/bun:1-slim
