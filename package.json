@@ -15,12 +15,11 @@
     "db:generate": "pnpm --filter @llm-shield/api db:generate",
     "db:migrate": "pnpm --filter @llm-shield/api db:migrate",
     "db:push": "pnpm --filter @llm-shield/api db:push",
-    "docker:build": "docker compose build api web",
-    "docker:push": "docker compose push api web",
+    "docker:build": "docker compose -f docker-compose.dev.yml build app",
+    "docker:push": "docker compose -f docker-compose.dev.yml push app",
     "docker:publish": "pnpm docker:build && pnpm docker:push",
-    "docker:deploy": "docker compose up -d --build",
-    "docker:deploy:prod": "docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d",
-    "docker:down": "docker compose down"
+    "docker:deploy": "docker compose -f docker-compose.dev.yml up -d --build",
+    "docker:down": "docker compose -f docker-compose.dev.yml down"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

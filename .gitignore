@@ -10,6 +10,7 @@ coverage/
 .DS_Store
 *.zip
 *.tar.gz
+ai_adapter-v2.tar
 *.tar
 *.tar.xz
 *.tar.lzma

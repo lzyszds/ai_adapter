@@ -5,7 +5,10 @@
 .pnpm-store
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+docker-compose.dev.yml
 coverage
 *.log
 .git

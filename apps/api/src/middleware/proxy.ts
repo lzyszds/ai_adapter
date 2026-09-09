@@ -1,4 +1,4 @@
-import { rewriteModelName, TARGET_MODEL } from "@llm-shield/shared";
+import { rewriteModelName, toGatewayModelRoute, TARGET_MODEL } from "@llm-shield/shared";
 import { config } from "../config";
 import { enqueue } from "../services/buffer";
 import { parseNonStreamUsage, parseStreamUsage, type TokenUsage } from "../services/tokenParser";
@@ -64,6 +64,16 @@ function enqueueRecord(r: RequestRecord) {
   void enqueue(r).catch((error) => logger.error("[proxy] request log failed", error));
 }
 
+/** Elysia/Bun 可能只给相对路径（如 /v1/chat/completions），不能直接 new URL(request.url) */
+function getIncomingPath(request: Request): string {
+  const raw = request.url;
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    const parsed = new URL(raw);
+    return `${parsed.pathname}${parsed.search}`;
+  }
+  return raw.startsWith("/") ? raw : `/${raw}`;
+}
+
 export async function proxyRequest(request: Request): Promise<Response> {
   const startedAt = Date.now();
   let originalModel = "unknown";
@@ -81,13 +91,12 @@ export async function proxyRequest(request: Request): Promise<Response> {
 
     if (body && typeof body.model === "string") {
       ({ originalModel, mappedModel } = rewriteModel(body.model));
-      body.model = mappedModel;
+      body.model = toGatewayModelRoute(body.model);
       if (body.stream === true) body.stream_options = { ...(body.stream_options as object ?? {}), include_usage: true };
     }
 
-    const incomingUrl = new URL(request.url);
     const upstreamBase = config.UPSTREAM_URL.replace(/\/$/, "");
-    const upstreamUrl = `${upstreamBase}${incomingUrl.pathname}${incomingUrl.search}`;
+    const upstreamUrl = `${upstreamBase}${getIncomingPath(request)}`;
     const headers = new Headers();
     request.headers.forEach((value, key) => { if (!HOP_BY_HOP.has(key.toLowerCase()) && key.toLowerCase() !== "authorization") headers.set(key, value); });
     if (config.UPSTREAM_API_KEY) headers.set("authorization", `Bearer ${config.UPSTREAM_API_KEY}`);

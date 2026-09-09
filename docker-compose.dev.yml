@@ -3,8 +3,6 @@ services:
     image: mysql:8.0
     container_name: ai_adapter-mysql
     restart: unless-stopped
-    labels:
-      autoheal: "true"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-llm_shield}
@@ -23,8 +21,6 @@ services:
     image: redis:7-alpine
     container_name: ai_adapter-redis
     restart: unless-stopped
-    labels:
-      autoheal: "true"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
@@ -36,15 +32,18 @@ services:
       timeout: 3s
       retries: 20
 
-  api:
-    image: ${DOCKER_REGISTRY:-lzyszds}/ai_adapter-api:${DOCKER_TAG:-v1}
-    container_name: ai_adapter-api
+  app:
+    image: registry.cn-hangzhou.aliyuncs.com/lzyszds/ai_adapter:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai_adapter-app
     restart: unless-stopped
-    labels:
-      autoheal: "true"
+    ports:
+      - "8088:80"
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: "3000"
       DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_ROOT_PASSWORD:-root}@mysql:3306/${MYSQL_DATABASE:-llm_shield}?connection_limit=20
       REDIS_URL: redis://redis:6379
       UPSTREAM_URL: ${UPSTREAM_URL:-https://llm.goaichat.top}
@@ -63,37 +62,11 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/health').then(async r => { const j = await r.json(); process.exit(r.ok && j.status === 'ok' ? 0 : 1) }).catch(() => process.exit(1))"]
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1/health').then(async r => { const j = await r.json(); process.exit(r.ok && j.status === 'ok' ? 0 : 1) }).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
-
-  web:
-    image: ${DOCKER_REGISTRY:-lzyszds}/ai_adapter-web:${DOCKER_TAG:-v1}
-    container_name: ai_adapter-web
-    restart: unless-stopped
-    labels:
-      autoheal: "true"
-    ports:
-      - "8088:80"
-    depends_on:
-      api:
-        condition: service_healthy
-    networks:
-      - internal
-
-  autoheal:
-    image: willfarrell/autoheal
-    container_name: ai_adapter-autoheal
-    restart: unless-stopped
-    environment:
-      AUTOHEAL_INTERVAL: 10
-      AUTOHEAL_START_PERIOD: 120
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - internal
 
 volumes:
   mysql-data:

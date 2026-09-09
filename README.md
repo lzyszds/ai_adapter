@@ -51,7 +51,7 @@ pnpm dev
 
 ## 代理行为
 
-- JSON 请求中的 `claude`、`sonnet`、`opus`、`haiku` 模型名按子串匹配并映射为 `glm-5.3`。
+- Claude / Claude Code 客户端使用伪装 Claude 模型 ID 发起请求，代理按映射表转发至真实上游模型（Kimi、GLM、Qwen、DeepSeek 等）；完整规则见仪表盘「模型映射表」。
 - 流式请求自动注入 `stream_options.include_usage=true`。
 - 流式响应通过 `ReadableStream.tee()` 透传给客户端，同时异步解析 SSE usage，不阻塞首字节响应。
 - 请求记录优先写入 Redis 队列，每 5 秒批量写入 MySQL；Redis 不可用时降级直写 MySQL。
@@ -59,57 +59,30 @@ pnpm dev
 
 ## Docker 部署（amd64 服务器）
 
-将 API 代理、Web 仪表盘、MySQL、Redis 全部打包进容器。仅对外暴露一个特殊端口 **8088**（可在 `web.ports` 中修改），全部服务通过 `http://<服务器>:8088` 访问。
+单镜像 `lzyszds/ai_adapter:v2`（Nginx + Bun API），对外端口 **8088**。
 
-仓库提供两份 compose 文件：
+### 服务器一键部署
 
-- **`docker-compose.yml`** — 本地/开发用，服务带 `build:`，从源码构建。
-- **`docker-compose.prod.yml`** — 服务器部署专用，**只有 `image:`、不含 `build:`**，无需源码即可运行，只拉镜像。
-
-### 1. 配置环境变量
+**只上传 `docker-compose.yml` 到服务器**，然后：
 
 ```bash
-cp .env.example .env
-# 编辑 .env：UPSTREAM_URL、PROXY_API_KEY、MYSQL_ROOT_PASSWORD 等
+docker compose pull
+docker compose up -d
 ```
 
-`.env` 中的 `DATABASE_URL` / `REDIS_URL` 会被 compose 覆盖为内部服务名地址（`mysql` / `redis`），无需自行修改。
+无需 `.env`、无需源码。改密码/上游地址：直接编辑 yml 里 `environment` 的值（MySQL 密码与 `DATABASE_URL` 保持一致）。
 
-### 2. 构建、推送镜像（在本机做一次）
-
-登录 Docker Hub 后，在项目根目录执行：
+### 本机构建推送
 
 ```bash
 docker login
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
 pnpm docker:publish
 ```
 
-`docker:publish` 依次执行 `docker compose build api web` 和 `docker compose push api web`，推送：
+使用 `docker-compose.dev.yml` 本地构建；服务器用根目录 `docker-compose.yml`。
 
-- `lzyszds/ai_adapter-api:v1`
-- `lzyszds/ai_adapter-web:v1`
-
-发布新版本时在 `.env` 中设置 `DOCKER_TAG=v2`（或自定义 `DOCKER_REGISTRY`）再执行 `pnpm docker:publish`。
-
-### 3. 在服务器上部署（无需源码、无需构建）
-
-**只上传 `docker-compose.prod.yml` 和 `.env` 到服务器**，例如放到 `/www/wwwroot/claude_server/`，然后执行：
-
-```bash
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
-```
-
-之后的操作都以 `-f docker-compose.prod.yml` 指定该文件。也可以直接用脚本：
-
-```bash
-pnpm docker:deploy:prod
-```
-
-> 若 `lzyszds/ai_adapter-*` 镜像是私有仓库，服务器需先 `docker login`。
-> 服务器端不需要 `apps/`、`packages/` 等源码，出现 `lstat .../apps: no such file` 说明用错了带 `build:` 的 `docker-compose.yml`。
-
-### 4. 访问
+### 访问
 
 - 仪表盘：http://<服务器>:8088/
 - 统计接口：http://<服务器>:8088/api/stats
@@ -120,8 +93,7 @@ pnpm docker:deploy:prod
 
 ```bash
 docker compose ps              # 查看服务状态（应为 healthy）
-docker compose logs -f api     # 跟踪 API 日志
-docker compose logs -f web     # 跟踪 nginx 日志
+docker compose logs -f app     # 跟踪应用日志
 docker compose down            # 停止（保留数据卷）
 docker compose down -v         # 停止并清除数据卷
 ```
