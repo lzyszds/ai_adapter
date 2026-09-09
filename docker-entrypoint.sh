@@ -20,7 +20,8 @@ if [ "${PRISMA_DB_PUSH:-auto}" != "always" ]; then
     import { PrismaClient } from '@prisma/client';
     const prisma = new PrismaClient();
     try {
-      await prisma.\$queryRaw\`SELECT 1 FROM request_logs LIMIT 1\`;
+      // 校验表及关键列（question/is_stream 等），避免旧库仅有表结构时跳过 db push
+      await prisma.\$queryRaw\`SELECT question, is_stream FROM request_logs LIMIT 1\`;
       process.exit(0);
     } catch {
       process.exit(1);
