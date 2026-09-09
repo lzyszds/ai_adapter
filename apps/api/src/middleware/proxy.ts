@@ -28,6 +28,34 @@ function rewriteModel(model: string): { originalModel: string; mappedModel: stri
   return { originalModel: model, mappedModel };
 }
 
+const QUESTION_MAX = 120;
+
+/** 从 OpenAI 风格 messages 中提取最后一条用户消息摘要（字符串或文本片段数组）。 */
+function extractQuestion(body: Record<string, unknown> | null): string | null {
+  if (!body) return null;
+  const messages = Array.isArray(body.messages) ? body.messages as Record<string, unknown>[] : [];
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+    if (!msg || msg.role !== "user") continue;
+    const content = msg.content;
+    let text = "";
+    if (typeof content === "string") {
+      text = content;
+    } else if (Array.isArray(content)) {
+      text = (content as unknown[])
+        .map((part) => {
+          if (part && typeof part === "object" && "text" in part) return String((part as { text: unknown }).text);
+          return "";
+        })
+        .join(" ");
+    }
+    text = text.replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    return text.length > QUESTION_MAX ? `${text.slice(0, QUESTION_MAX)}…` : text;
+  }
+  return null;
+}
+
 function jsonResponse(body: unknown, status: number): Response {
   return Response.json(body, { status, headers: { "content-type": "application/json" } });
 }
@@ -66,7 +94,7 @@ async function consumeStream(stream: ReadableStream<Uint8Array>): Promise<{ text
   }
 }
 
-function record(originalModel: string, mappedModel: string, usage: TokenUsage, statusCode: number, duration: number): RequestRecord {
+function record(originalModel: string, mappedModel: string, usage: TokenUsage, statusCode: number, duration: number, question: string | null = null, isStream = false): RequestRecord {
   return {
     originalModel,
     mappedModel: mappedModel === "unknown" ? TARGET_MODEL : mappedModel,
@@ -76,6 +104,8 @@ function record(originalModel: string, mappedModel: string, usage: TokenUsage, s
     statusCode,
     duration,
     timestamp: new Date(),
+    question,
+    isStream,
   };
 }
 
@@ -108,6 +138,8 @@ export async function proxyRequest(request: Request): Promise<Response> {
     const rawBody = await request.text();
     let body: Record<string, unknown> | null = null;
     try { body = JSON.parse(rawBody); } catch { /* non-JSON requests are forwarded unchanged */ }
+    const question = extractQuestion(body);
+    const isStreamBody = body?.stream === true;
 
     if (body && typeof body.model === "string") {
       ({ originalModel, mappedModel } = rewriteModel(body.model));
@@ -155,7 +187,7 @@ export async function proxyRequest(request: Request): Promise<Response> {
     if (isStream) {
       const [clientStream, auditStream] = upstreamResponse.body.tee();
       void consumeStream(auditStream).then(({ usage }) => {
-        enqueueRecord(record(originalModel, mappedModel, usage, statusCode, Date.now() - startedAt));
+        enqueueRecord(record(originalModel, mappedModel, usage, statusCode, Date.now() - startedAt, question, isStreamBody));
       }).catch((error) => logger.warn("[proxy] stream parse failed", error));
       return new Response(clientStream, { status: statusCode, headers: responseHeaders });
     }
@@ -164,7 +196,7 @@ export async function proxyRequest(request: Request): Promise<Response> {
     const bytes = await upstreamResponse.arrayBuffer();
     try {
       const text = new TextDecoder().decode(bytes);
-      enqueueRecord(record(originalModel, mappedModel, parseNonStreamUsage(text), statusCode, Date.now() - startedAt));
+      enqueueRecord(record(originalModel, mappedModel, parseNonStreamUsage(text), statusCode, Date.now() - startedAt, question, isStreamBody));
     } catch (error) {
       logger.warn("[proxy] non-stream parse failed", error);
     }

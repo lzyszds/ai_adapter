@@ -32,6 +32,8 @@ async function writeDirect(records: RequestRecord[]): Promise<boolean> {
         statusCode: r.statusCode,
         duration: r.duration,
         timestamp: new Date(r.timestamp),
+        question: r.question ?? null,
+        isStream: r.isStream ?? false,
       })),
     });
     return true;

@@ -8,4 +8,8 @@ export interface RequestRecord {
   statusCode: number;
   duration: number;
   timestamp: Date | string;
+  /** 用户问题摘要（截断，可能为 null） */
+  question?: string | null;
+  /** 是否为流式请求 */
+  isStream?: boolean;
 }

@@ -108,6 +108,24 @@ export function toUpstreamModelId(model: string): string {
 /** @deprecated 使用 toUpstreamModelId */
 export const toGatewayModelRoute = toUpstreamModelId;
 
+export type StatsWindow = "1h" | "6h" | "24h";
+
+export interface WindowConfig {
+  seconds: number;
+  bucketMs: number;
+}
+
+export function resolveStatsWindow(window: string | undefined): { key: StatsWindow; config: WindowConfig } {
+  if (window === "6h") return { key: "6h", config: { seconds: 6 * 60 * 60, bucketMs: 30 * 60 * 1000 } };
+  if (window === "24h") return { key: "24h", config: { seconds: 24 * 60 * 60, bucketMs: 60 * 60 * 1000 } };
+  return { key: "1h", config: { seconds: 60 * 60, bucketMs: 5 * 60 * 1000 } };
+}
+
+export interface StatusBreakdown {
+  statusCode: number;
+  count: number;
+}
+
 export interface StatsSummary {
   totalRequests: number;
   successCount: number;
@@ -116,6 +134,16 @@ export interface StatsSummary {
   completionTokens: number;
   totalTokens: number;
   avgDurationMs: number;
+  requestsPerMinute: number;
+  requestsPerSecond: number;
+  tokensPerSecond: number;
+  successRate: number;
+  p50LatencyMs: number;
+  p95LatencyMs: number;
+  maxDurationMs: number;
+  streamingCount: number;
+  statusBreakdown: StatusBreakdown[];
+  windowSeconds: number;
 }
 
 export interface ModelDetail {
@@ -127,17 +155,37 @@ export interface ModelDetail {
   promptTokens: number;
   completionTokens: number;
   originalModels: string[];
+  avgDurationMs: number;
+  streamingCount: number;
 }
 
 export interface TrendPoint {
-  timestamp: string; // ISO 8601，整点/分钟刻度的起点
+  timestamp: string; // ISO 8601，聚合桶起点
   requestCount: number;
   totalTokens: number;
+  successCount: number;
+  failedCount: number;
+  totalDurationMs: number;
+  avgDurationMs: number;
+}
+
+export interface RecentRequest {
+  id: number;
+  timestamp: string;
+  originalModel: string;
+  mappedModel: string;
+  question: string | null;
+  statusCode: number;
+  duration: number;
+  totalTokens: number;
+  isStream: boolean;
 }
 
 export interface StatsResponse {
   summary: StatsSummary;
   models: ModelDetail[];
   trends: TrendPoint[];
+  recentRequests: RecentRequest[];
   generatedAt: string;
+  windowSeconds: number;
 }

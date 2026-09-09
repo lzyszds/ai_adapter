@@ -18,6 +18,8 @@ model RequestLog {
   totalTokens      Int      @default(0) @map("total_tokens")
   statusCode       Int      @map("status_code")
   duration         Int      @default(0)
+  question         String?  @map("question")
+  isStream         Boolean  @default(false) @map("is_stream")
 
   @@index([timestamp])
   @@index([mappedModel])

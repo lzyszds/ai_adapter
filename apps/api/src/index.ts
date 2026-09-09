@@ -43,7 +43,9 @@ const app = new Elysia()
       set.status = 401;
       return { error: "Unauthorized", message: "需要有效的上游 API Key" };
     }
-    return getStats();
+    const requestedWindow = new URL(request.url).searchParams.get("window") ?? undefined;
+    const window = requestedWindow === "6h" || requestedWindow === "24h" ? requestedWindow : "1h";
+    return getStats(window);
   })
   // 兜底：所有未被 API 路由匹配的请求视为代理请求，透传原始路径。
   .all("/*", ({ request }) => proxyRequest(request));

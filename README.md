@@ -72,15 +72,25 @@ docker compose up -d
 
 无需 `.env`、无需源码。改密码/上游地址：直接编辑 yml 里 `environment` 的值（MySQL 密码与 `DATABASE_URL` 保持一致）。
 
-### 本机构建推送
+### 发布镜像（GitHub Actions 云端构建）
+
+推送代码到 `master`（或打 `v*` 标签）后，`.github/workflows/docker-publish.yml` 会自动在 GitHub Actions 上构建 `linux/amd64` 镜像并推送到阿里云 ACR `registry.cn-hangzhou.aliyuncs.com/lzyszds/ai_adapter`（`latest` / `sha-<hash>` / 标签名）。
+
+首次使用前，在仓库 **Settings → Secrets and variables → Actions** 配置两个 Secret：
+
+| Secret | 说明 |
+| --- | --- |
+| `ALIYUN_REGISTRY_USERNAME` | 阿里云容器镜像服务登录用户名（RAM 用户或主账号用户名） |
+| `ALIYUN_REGISTRY_PASSWORD` | 镜像仓库「访问凭证」里的固定密码 |
+
+也可在 Actions 页面手动触发 `Docker Publish`。服务器端无需改动：
 
 ```bash
-docker login
-export DOCKER_DEFAULT_PLATFORM=linux/amd64
-pnpm docker:publish
+docker compose pull
+docker compose up -d
 ```
 
-使用 `docker-compose.dev.yml` 本地构建；服务器用根目录 `docker-compose.yml`。
+> 不再需要本机 `pnpm docker:publish`（本地 `docker-compose.dev.yml` 仍可用于 `pnpm docker:build` 调试）。
 
 ### 访问
 
